@@ -278,10 +278,11 @@ const FIELDS=['신청일자','지역','상호','업종','사업자번호','연�
 const EDIT=['지역','업종','상담날짜','상담시간'];
 
 /* 조회 */
+const dk=r=>r.first||(r.신청일자||'').slice(0,10)||'0';
 function base(){
-  return Object.values(DB.rows).filter(r=>(SEL==='전체'||r.who===SEL)&&r.first&&r.first>=FROM&&r.first<=TO);
+  return Object.values(DB.rows).filter(r=>(SEL==='전체'||r.who===SEL)&&dk(r)>=FROM&&dk(r)<=TO);
 }
-const srt=a=>a.sort((x,y)=>x.first.localeCompare(y.first)||x.신청일자.localeCompare(y.신청일자));
+const srt=a=>a.sort((x,y)=>(x.first||'9999').localeCompare(y.first||'9999')||x.신청일자.localeCompare(y.신청일자));
 function view(){return srt(base().filter(r=>!SF.size||SF.has(lb(r))))}
 
 function rowsHtml(list){
