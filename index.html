@@ -301,7 +301,8 @@ function draw(){
   $('#app').hidden=!rowsAll.length;if(!rowsAll.length)return;
   if(!FROM){const mx=rowsAll.map(r=>r.first).filter(Boolean).sort().pop()||add(new Date().toISOString().slice(0,10),0);TO=mx;FROM=add(mx,-6)}
   $('#from').value=FROM;$('#to').value=TO;
-  const who=['전체',...new Set(rowsAll.map(r=>r.who))];
+  const HIDE=['강빛나','손지영'];
+  const who=['전체',...[...new Set(rowsAll.map(r=>r.who))].filter(n=>!HIDE.includes(n)).sort((x,y)=>(x==='미지정')-(y==='미지정')||x.localeCompare(y,'ko'))];
   $('#people').innerHTML=who.map(w=>`<button class="chip" aria-pressed="${w===SEL}" data-w="${esc(w)}">${esc(w)} ${rowsAll.filter(r=>w==='전체'||r.who===w).length}</button>`).join('');
   const b=base(),cnt={};b.forEach(r=>cnt[lb(r)]=(cnt[lb(r)]||0)+1);
   $('#chips').innerHTML=Object.keys(CL).filter(k=>cnt[k]).map(k=>`<button class="chip k" style="${sty(k)}" aria-pressed="${SF.size?SF.has(k):true}" data-s="${k}">${k} ${cnt[k]}</button>`).join('');
