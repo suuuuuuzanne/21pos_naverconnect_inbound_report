@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>인바운드 2차 보고</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{--bg:#f6f7f6;--card:#fff;--ink:#1d2a26;--mute:#66736e;--line:#dde3e0;--acc:#0e6b5c;--acc-ink:#fff;--edit:#fff8dc;--band:#e8f1ee}
+@media (prefers-color-scheme:dark){:root{--bg:#131a18;--card:#1b2421;--ink:#e6eeeb;--mute:#93a39d;--line:#2d3a36;--acc:#3fb6a0;--acc-ink:#0b1412;--edit:#3a3516;--band:#22302c}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 "Pretendard","Apple SD Gothic Neo","Malgun Gothic",sans-serif}
+header{padding:22px 24px 0;max-width:1280px;margin:auto}
+h1{font-size:22px;margin:0 0 4px}
+.sub{color:var(--mute);margin:0 0 16px}
+nav{display:flex;gap:4px;border-bottom:1px solid var(--line)}
+nav button{background:none;border:0;padding:9px 16px;font:inherit;color:var(--mute);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+nav button[aria-selected=true]{color:var(--ink);border-color:var(--acc);font-weight:600}
+main{max-width:1280px;margin:auto;padding:18px 24px 60px}
+button:focus-visible,select:focus-visible,input:focus-visible,td:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+.drop{border:1.5px dashed var(--line);border-radius:8px;background:var(--card);padding:26px;text-align:center;color:var(--mute)}
+.drop.on{border-color:var(--acc);background:var(--band)}
+.btn{background:var(--acc);color:var(--acc-ink);border:0;border-radius:6px;padding:8px 14px;font:inherit;font-weight:600;cursor:pointer}
+.btn.ghost{background:none;color:var(--ink);border:1px solid var(--line);font-weight:500}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0}
+.bar .sp{flex:1}
+.chip{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:16px;padding:4px 12px;font:inherit;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--acc);color:var(--acc-ink);border-color:var(--acc)}
+select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink)}
+.stat{color:var(--mute);margin:4px 0 10px}
+.wrap{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;min-width:1100px;font-size:13.5px}
+th{background:var(--band);text-align:left;padding:8px 10px;white-space:nowrap;position:sticky;top:0}
+td{padding:7px 10px;border-top:1px solid var(--line);vertical-align:top}
+td.e{background:var(--edit);min-width:72px}
+td.n{white-space:nowrap}
+td.c{min-width:320px;max-width:520px}
+tr.band td{background:var(--band);font-weight:600;border-top:1px solid var(--acc)}
+.tag{display:inline-block;padding:1px 8px;border-radius:10px;background:var(--band);font-size:12.5px;white-space:nowrap}
+.guide{max-width:760px}
+.guide h2{font-size:17px;margin:26px 0 6px}
+.guide ol,.guide ul{padding-left:20px}
+.guide li{margin:4px 0}
+.guide table{min-width:0;margin:8px 0}
+code{background:var(--band);padding:1px 6px;border-radius:4px;font-size:13px}
+.warn{border-left:3px solid var(--acc);background:var(--band);padding:8px 12px;margin:10px 0;border-radius:0 6px 6px 0}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <h1>인바운드 2차 보고</h1>
+  <p class="sub">인바운드 통계 엑셀을 올리면 담당자별 누적, 컨택일자별 데일리로 정리됩니다.</p>
+  <nav role="tablist">
+    <button role="tab" aria-selected="true" data-t="rep">보고서</button>
+    <button role="tab" aria-selected="false" data-t="gd">사용법</button>
+  </nav>
+</header>
+<main>
+<section id="rep">
+  <label class="drop" id="drop" style="display:block;cursor:pointer">
+    <input type="file" id="file" accept=".xlsx,.xlsm" hidden>
+    <b id="fn">엑셀 파일을 여기에 끌어놓거나 눌러서 선택</b><br>
+    <span>인바운드_원본, 재컨택_로그 시트를 읽습니다. 파일은 이 브라우저 안에서만 처리되고 어디에도 올라가지 않습니다.</span>
+  </label>
+  <div id="app" hidden>
+    <div class="bar" id="people"></div>
+    <div class="bar">
+      <select id="date" aria-label="컨택일 선택"></select>
+      <button class="chip" id="m1" aria-pressed="true">데일리</button>
+      <button class="chip" id="m2" aria-pressed="false">누적</button>
+      <span class="sp"></span>
+      <button class="btn" id="exp">엑셀로 내보내기</button>
+    </div>
+    <div class="stat" id="stat"></div>
+    <div class="wrap"><table><thead><tr>
+      <th>신청일자</th><th>지역</th><th>상호</th><th>업종</th><th>사업자번호</th><th>연락처</th><th>상담결과</th><th>상담날짜</th><th>상담시간</th><th>상담내용</th>
+    </tr></thead><tbody id="tb"></tbody></table></div>
+    <p class="stat">노란 칸(지역·업종·상담날짜·상담시간)은 직접 고칠 수 있고, 이 브라우저에 자동 저장됩니다.</p>
+  </div>
+</section>
+
+<section id="gd" class="guide" hidden>
+  <h2>1. 원본 올리기</h2>
+  <ol>
+    <li>인바운드 통계 엑셀(<code>네이버_인바운드_통계_*.xlsx</code>)을 엑셀에서 저장한 상태 그대로 준비합니다. 계산 결과가 들어 있어야 지역·업종이 자동으로 읽힙니다.</li>
+    <li>보고서 탭의 점선 칸에 파일을 끌어놓거나 눌러서 선택합니다.</li>
+    <li>새 데이터가 쌓이면 같은 방법으로 다시 올립니다. 고친 칸은 신청일시 기준으로 유지됩니다.</li>
+  </ol>
+  <div class="warn">엑셀 파일은 GitHub 저장소에 올리지 마세요. 사이트에는 화면 소스만 두고, 데이터는 사용할 때마다 각자 브라우저에서 올립니다. 사업자번호와 연락처가 들어 있습니다.</div>
+
+  <h2>2. 자동으로 채워지는 항목</h2>
+  <table>
+    <tr><th>항목</th><th>가져오는 곳</th></tr>
+    <tr><td>신청일자</td><td>신청일시의 날짜</td></tr>
+    <tr><td>지역, 업종</td><td>원본의 지역(자동), 업종(자동) 열. 비어 있으면 직접 입력</td></tr>
+    <tr><td>상호</td><td>상호 열, 없으면 매장명</td></tr>
+    <tr><td>사업자번호, 연락처, 상담내용</td><td>원본 그대로</td></tr>
+    <tr><td>상담결과</td><td>상담결과 열. 오타(무음답, 구매 예정 등)는 바로잡아 표시</td></tr>
+    <tr><td>상담날짜</td><td>1차 컨택일. 부재중·무응답은 재컨택_로그 기준으로 1차·2차·3차를 모두 표시</td></tr>
+    <tr><td>상담시간</td><td>1차 컨택일에 시간이 있으면 그 시간, 없으면 상담내용에 적힌 첫 시각(예: 11:47)</td></tr>
+  </table>
+  <p>담당자가 <code>강빛나(이수진)</code>처럼 괄호가 있으면 괄호 안 이름(이수진)을 실제 담당자로 보고 묶습니다. 담당자가 비어 있으면 미지정으로 모입니다.</p>
+
+  <h2>3. 정리된 데이터 사용하기</h2>
+  <ol>
+    <li>위쪽에서 담당자를 고르면 그 사람의 전체 누적이 나옵니다. 전체를 누르면 모두 보입니다.</li>
+    <li>데일리는 컨택일자별로 묶어서 보여주고, 누적은 날짜순으로 쭉 이어 보여줍니다.</li>
+    <li>날짜 선택으로 하루만 골라 보고할 수도 있습니다.</li>
+    <li>노란 칸을 채운 뒤 엑셀로 내보내기를 누르면 현재 선택한 범위가 파일로 저장됩니다. 전체 누적 시트와 담당자별 시트(날짜별 구분선 포함)가 만들어집니다.</li>
+  </ol>
+
+  <h2>4. GitHub Pages로 공유하기</h2>
+  <ol>
+    <li>GitHub에서 새 저장소를 만듭니다. 예: <code>inbound-report</code></li>
+    <li>이 <code>index.html</code> 한 파일만 올립니다(Add file, Upload files, Commit).</li>
+    <li>저장소의 Settings, Pages에서 Source를 Deploy from a branch로, Branch를 main, 폴더를 / (root)로 정하고 Save를 누릅니다.</li>
+    <li>1~2분 뒤 <code>https://내아이디.github.io/inbound-report/</code> 주소가 생깁니다. 이 주소를 팀에 공유하면 됩니다.</li>
+    <li>화면을 고치고 싶으면 같은 파일을 다시 올려 덮어씁니다.</li>
+  </ol>
+</section>
+</main>
+
+<script>
+const $=s=>document.querySelector(s),p2=n=>String(n).padStart(2,'0'),DW='일월화수목금토';
+let ROWS=[],SEL='전체',DATE='',MODE='daily',ED={};
+try{ED=JSON.parse(localStorage.getItem('ib_ed')||'{}')}catch(e){}
+const save=()=>{try{localStorage.setItem('ib_ed',JSON.stringify(ED))}catch(e){}};
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* 날짜 해석: 엑셀 일련번호 또는 '2026-10-12 3:45 오후' 형태 */
+function pdt(v){
+  if(v===''||v==null)return null;
+  if(typeof v==='number'){const o=XLSX.SSF.parse_date_code(v);return o?{d:`${o.y}-${p2(o.m)}-${p2(o.d)}`,t:(o.H||o.M)?`${p2(o.H)}:${p2(o.M)}`:''}:null}
+  const m=String(v).match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})(?:\D+(\d{1,2}):(\d{2}))?\s*(오전|오후)?/);
+  if(!m)return null;
+  let t='';
+  if(m[4]){let h=+m[4];if(m[6]==='오후'&&h<12)h+=12;if(m[6]==='오전'&&h===12)h=0;t=`${p2(h)}:${m[5]}`}
+  return{d:`${m[1]}-${p2(m[2])}-${p2(m[3])}`,t};
+}
+const md=d=>d?`${+d.slice(5,7)}/${+d.slice(8,10)}`:'';
+const lab=d=>d?`${md(d)} (${DW[new Date(d+'T00:00:00').getDay()]})`:'컨택일 미입력';
+
+function grp(k){
+  const s=String(k||'').replace(/\s/g,'');
+  if(!s)return['','미입력'];
+  if(/^(무응답|무음답|부재중|부재)$/.test(s))return['부재중·무응답','무응답'];
+  if(/^[23]차컨택예정$/.test(s))return['재컨택 대기',s.replace('차컨택예정','차 컨택예정')];
+  if(['구매','구매예정','보류','취소'].includes(s))return[s,s];
+  return['미분류',String(k).trim()];
+}
+
+function load(wb){
+  const ws=wb.Sheets['인바운드_원본']||wb.Sheets[wb.SheetNames.find(n=>n.includes('원본'))];
+  if(!ws)return alert('인바운드_원본 시트를 찾지 못했습니다.');
+  const a=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''});
+  const hi=a.findIndex(r=>r[0]==='신청일시');
+  if(hi<0)return alert('신청일시 머리글을 찾지 못했습니다.');
+  const H=a[hi],ri=H.indexOf('지역(자동)'),ui=H.indexOf('업종(자동)');
+  const lg={},ls=wb.Sheets['재컨택_로그'];
+  if(ls)XLSX.utils.sheet_to_json(ls,{header:1,raw:true,defval:''}).slice(4).forEach(r=>{
+    const d=pdt(r[0]);if(!d||!r[1])return;(lg[r[1]]=lg[r[1]]||new Set()).add(d.d)});
+  ROWS=[];
+  a.slice(hi+1).forEach(r=>{
+    if(r[0]==='')return;
+    const key=String(r[0]),c=pdt(r[4]),ap=pdt(r[0]);
+    const [g,res]=grp(r[10]),memo=String(r[11]||'');
+    const raw=String(r[5]||'').trim(),pm=raw.match(/\(([^)]+)\)/),who=(pm?pm[1]:raw).trim()||'미지정';
+    const first=c?c.d:'',ds=[...(lg[key]||[])].sort();
+    let when=md(first);
+    if(g==='부재중·무응답'){when=`1차 ${md(first)||'-'} / 2차 ${md(ds[0])||'-'} / 3차 ${md(ds[1])||'-'}`}
+    const tm=(c&&c.t)||((memo.match(/(\d{1,2}):(\d{2})/)||[])[0]||'');
+    ROWS.push({key,who,raw,first,g,
+      신청일자:ap?ap.d:'',
+      지역:ri>=0?String(r[ri]||''):'',
+      상호:String(r[7]||r[1]||''),
+      업종:ui>=0?String(r[ui]||''):'',
+      사업자번호:String(r[6]||''),
+      연락처:String(r[3]||''),
+      상담결과:res,상담날짜:when,상담시간:tm,상담내용:memo});
+  });
+  SEL='전체';DATE='';$('#app').hidden=false;draw();
+}
+
+const val=(r,f)=>(ED[r.key]&&ED[r.key][f]!==undefined)?ED[r.key][f]:r[f];
+const FIELDS=['신청일자','지역','상호','업종','사업자번호','연락처','상담결과','상담날짜','상담시간','상담내용'];
+const EDIT=['지역','업종','상담날짜','상담시간'];
+
+function view(){
+  return ROWS.filter(r=>(SEL==='전체'||r.who===SEL)&&(!DATE||r.first===DATE))
+    .sort((a,b)=>(a.first||'9').localeCompare(b.first||'9')||a.신청일자.localeCompare(b.신청일자));
+}
+
+function draw(){
+  const who=['전체',...new Set(ROWS.map(r=>r.who))];
+  $('#people').innerHTML=who.map(w=>{
+    const n=ROWS.filter(r=>w==='전체'||r.who===w).length;
+    return`<button class="chip" aria-pressed="${w===SEL}" data-w="${esc(w)}">${esc(w)} ${n}</button>`}).join('');
+  const ds=[...new Set(ROWS.filter(r=>SEL==='전체'||r.who===SEL).map(r=>r.first))].sort().reverse();
+  if(DATE&&!ds.includes(DATE))DATE='';
+  $('#date').innerHTML='<option value="">전체 기간</option>'+ds.map(d=>`<option value="${d}" ${d===DATE?'selected':''}>${lab(d)}</option>`).join('');
+  $('#m1').setAttribute('aria-pressed',MODE==='daily');$('#m2').setAttribute('aria-pressed',MODE==='all');
+  const rs=view(),t={};rs.forEach(r=>t[r.g||'미입력']=(t[r.g||'미입력']||0)+1);
+  $('#stat').textContent=`${SEL} · ${rs.length}건 · `+Object.entries(t).map(([k,v])=>`${k} ${v}`).join(', ');
+  let h='',last=null;
+  const days=MODE==='daily'?(a=>{const o={};a.forEach(r=>(o[r.first]=o[r.first]||[]).push(r));return o})(rs):null;
+  rs.forEach(r=>{
+    if(days&&r.first!==last){last=r.first;h+=`<tr class="band"><td colspan="10">${lab(r.first)} · ${days[r.first].length}건</td></tr>`}
+    h+='<tr>'+FIELDS.map(f=>{
+      const e=EDIT.includes(f),v=val(r,f);
+      if(e)return`<td class="e" contenteditable tabindex="0" data-k="${esc(r.key)}" data-f="${f}">${esc(v)}</td>`;
+      if(f==='상담결과')return`<td class="n"><span class="tag">${esc(v)}</span></td>`;
+      return`<td class="${f==='상담내용'?'c':'n'}">${esc(v)}</td>`}).join('')+'</tr>';
+  });
+  $('#tb').innerHTML=h||'<tr><td colspan="10" style="text-align:center;color:var(--mute);padding:28px">표시할 데이터가 없습니다.</td></tr>';
+}
+
+function exportXlsx(){
+  const rs=view(),out=XLSX.utils.book_new();
+  const line=(r,w)=>(w?[r.who]:[]).concat(FIELDS.map(f=>val(r,f)));
+  const all=[['담당자',...FIELDS],...rs.map(r=>line(r,1))];
+  const s=XLSX.utils.aoa_to_sheet(all);s['!cols']=[8,11,10,22,12,15,14,12,24,9,60].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(out,s,'전체 누적');
+  [...new Set(rs.map(r=>r.who))].forEach(w=>{
+    const a=[FIELDS],mine=rs.filter(r=>r.who===w);let last=null;
+    mine.forEach(r=>{if(r.first!==last){last=r.first;a.push([`${lab(r.first)} · ${mine.filter(x=>x.first===last).length}건`])}a.push(line(r,0))});
+    const sh=XLSX.utils.aoa_to_sheet(a);sh['!cols']=[11,10,22,12,15,14,12,24,9,60].map(x=>({wch:x}));
+    XLSX.utils.book_append_sheet(out,sh,w.replace(/[\\\/?*\[\]:]/g,'').slice(0,31)||'미지정');
+  });
+  const d=new Date();
+  XLSX.writeFile(out,`인바운드_2차보고_${d.getFullYear()}${p2(d.getMonth()+1)}${p2(d.getDate())}.xlsx`);
+}
+
+/* 이벤트 */
+function pick(f){
+  $('#fn').textContent=f.name;
+  const rd=new FileReader();
+  rd.onload=e=>{try{load(XLSX.read(e.target.result,{type:'array'}))}catch(x){alert('파일을 읽지 못했습니다. 엑셀(.xlsx) 파일인지 확인하세요.')}};
+  rd.readAsArrayBuffer(f);
+}
+$('#file').onchange=e=>e.target.files[0]&&pick(e.target.files[0]);
+const dz=$('#drop');
+dz.ondragover=e=>{e.preventDefault();dz.classList.add('on')};
+dz.ondragleave=()=>dz.classList.remove('on');
+dz.ondrop=e=>{e.preventDefault();dz.classList.remove('on');e.dataTransfer.files[0]&&pick(e.dataTransfer.files[0])};
+$('#people').onclick=e=>{const b=e.target.closest('[data-w]');if(b){SEL=b.dataset.w;draw()}};
+$('#date').onchange=e=>{DATE=e.target.value;draw()};
+$('#m1').onclick=()=>{MODE='daily';draw()};
+$('#m2').onclick=()=>{MODE='all';draw()};
+$('#exp').onclick=exportXlsx;
+$('#tb').addEventListener('input',e=>{
+  const c=e.target.closest('[data-k]');if(!c)return;
+  (ED[c.dataset.k]=ED[c.dataset.k]||{})[c.dataset.f]=c.textContent;save()});
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.setAttribute('aria-selected',x===b));
+  $('#rep').hidden=b.dataset.t!=='rep';$('#gd').hidden=b.dataset.t!=='gd'});
+</script>
+</body>
+</html>
