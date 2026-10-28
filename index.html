@@ -33,6 +33,8 @@ button:focus-visible,select:focus-visible,input:focus-visible,td:focus-visible{o
 input[type=date],select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink)}
 .stat{color:var(--mute);margin:4px 0 10px}
 .msg{color:var(--acc);font-weight:600;margin:8px 0}
+.topscroll{overflow-x:auto;overflow-y:hidden;height:16px;margin-bottom:4px}
+.topscroll div{height:1px}
 .wrap{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:8px}
 table{border-collapse:collapse;width:100%;min-width:1150px;font-size:13.5px}
 th{background:var(--band);text-align:left;padding:8px 10px;white-space:nowrap;position:sticky;top:0}
@@ -84,7 +86,8 @@ code{background:var(--band);padding:1px 6px;border-radius:4px;font-size:13px}
     </div>
     <div class="bar" id="chips"></div>
     <div class="stat" id="stat"></div>
-    <div class="wrap"><table><thead><tr><th>신청일자</th><th>지역</th><th>상호</th><th>업종</th><th>사업자번호</th><th>연락처</th><th>상담결과</th><th>1차 컨택일</th><th>1차 시간</th><th>2차 일자</th><th>2차 시간</th><th>3차 일자</th><th>3차 시간</th><th>상담내용</th></tr></thead><tbody id="tb"></tbody></table></div>
+    <div class="topscroll" id="ts" aria-hidden="true"><div id="tsi"></div></div>
+    <div class="wrap" id="wr"><table id="tbl"><thead><tr><th>신청일자</th><th>지역</th><th>상호</th><th>업종</th><th>사업자번호</th><th>연락처</th><th>상담결과</th><th>1차 컨택일</th><th>1차 시간</th><th>2차 일자</th><th>2차 시간</th><th>3차 일자</th><th>3차 시간</th><th>상담내용</th></tr></thead><tbody id="tb"></tbody></table></div>
     <p class="stat">노란 칸(지역·업종·1~3차 일자·시간)은 직접 고칠 수 있고 자동 저장됩니다. 부재·무응답 건은 표 맨 아래에 따로 모았습니다.</p>
   </div>
 </section>
@@ -190,7 +193,7 @@ async function loadSheet(){
   say('구글 시트에서 불러오는 중...');
   const get=async t=>{
     try{const r=await fetch(`https://docs.google.com/spreadsheets/d/${m[1]}/gviz/tq?tqx=out:csv&headers=0&sheet=${encodeURIComponent(t)}`);if(!r.ok)throw new Error('HTTP '+r.status);return csv(await r.text())}
-    catch(e){return jsonp(m[1],t)}};
+    catch(e1){try{return await jsonp(m[1],t)}catch(e2){throw new Error(`[${t} 탭] 방법1: ${e1.message||e1} / 방법2: ${e2.message||e2}`)}}};
   try{
     const [a,l]=await Promise.all([get('인바운드_원본'),get('재컨택_로그').catch(()=>[])]),rows=rowsFrom(a,l);
     if(!rows.length)throw new Error('인바운드_원본 시트에서 데이터를 찾지 못했습니다');
@@ -210,22 +213,22 @@ function parse(wb){
   return rowsFrom(XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''}),ls?XLSX.utils.sheet_to_json(ls,{header:1,raw:true,defval:''}):[]);
 }
 function rowsFrom(a,la){
-  const hi=a.findIndex(r=>r[0]==='신청일시');
+  const hi=a.findIndex(r=>r[0]==='신청일시'||(r.includes('연락처')&&r.includes('상담내용')));
   if(hi<0)throw new Error('신청일시 머리글을 찾지 못했습니다.');
-  const H=a[hi],ix=n=>H.indexOf(n),mi=ix('컨택일(날짜)'),c2=ix('2차 컨택일'),t2=ix('2차 시간'),c3=ix('3차 컨택일'),t3=ix('3차 시간'),q2=ix('2차 예정일'),q3=ix('3차 예정일');
+  const H=a[hi],DEF={'컨택일(날짜)':12,'2차 컨택일':15,'2차 시간':16,'3차 컨택일':17,'3차 시간':18,'2차 예정일':19,'3차 예정일':20,'지역(자동)':21,'업종(자동)':22},ix=n=>{const i=H.indexOf(n);return i>=0?i:DEF[n]},mi=ix('컨택일(날짜)'),c2=ix('2차 컨택일'),t2=ix('2차 시간'),c3=ix('3차 컨택일'),t3=ix('3차 시간'),q2=ix('2차 예정일'),q3=ix('3차 예정일');
   const dd=(r,i)=>{const x=i>=0?pdt(r[i]):null;return x?x.d:''},tt=(r,i)=>{const x=i>=0&&String(r[i]||'').match(/\d{1,2}:\d{2}/);return x?x[0].padStart(5,'0'):''};
-  const ri=H.indexOf('지역(자동)'),ui=H.indexOf('업종(자동)'),lg={};
+  const ri=ix('지역(자동)'),ui=ix('업종(자동)'),lg={};
   la.forEach(r=>{const d=pdt(r[0]);if(d&&r[1])(lg[r[1]]=lg[r[1]]||new Set()).add(d.d)});
   const out=[];
   a.slice(hi+1).forEach(r=>{
     if(r[0]==='')return;
-    const key=String(r[0]),c=pdt(r[4]),ap=pdt(r[0]),[g,res]=grp(r[10]);
+    const key=String(r[0])+'|'+String(r[3]),rk=String(r[0]),c=pdt(r[4]),ap=pdt(r[0]),[g,res]=grp(r[10]);
     const raw=String(r[5]||'').trim(),pm=raw.match(/\(([^)]+)\)/);
     out.push({key,who:(pm?pm[1]:raw).trim()||'미지정',first:dd(r,mi)||(c?c.d:''),t1:c?c.t:'',g,d2:dd(r,c2),t2:tt(r,t2),d3:dd(r,c3),t3:tt(r,t3),q2:dd(r,q2),q3:dd(r,q3),
       신청일자:ap?`${ap.d} ${ap.t}`.trim():'',
       지역:ri>=0?String(r[ri]||''):'',상호:String(r[7]||r[1]||''),
       업종:ui>=0?String(r[ui]||''):'',사업자번호:String(r[6]||''),연락처:String(r[3]||''),
-      상담결과:res,상담내용:String(r[11]||''),ds:[...(lg[key]||[])].sort()});
+      상담결과:res,상담내용:String(r[11]||''),ds:[...(lg[rk]||[])].sort()});
   });
   return out;
 }
@@ -316,6 +319,7 @@ function draw(){
 }
 
 /* 내보내기 */
+const _draw=draw;draw=function(){_draw();syncTop()};
 function exportXlsx(){
   const rs=view(),out=XLSX.utils.book_new();
   const line=(r,w)=>(w?[r.who]:[]).concat(FIELDS.map(f=>val(r,f)));
@@ -351,6 +355,7 @@ $('#chips').onclick=e=>{const b=e.target.closest('[data-s]');if(!b)return;const 
   if(!SF.size){SF=new Set([k])}else if(SF.has(k)){SF.delete(k)}else SF.add(k);draw()};
 function setR(w,side,v){
   let a=w==='A'?AF:FROM,b=w==='A'?AT:TO;NOTE='';
+  if(!v){if(w==='A'){AF=AT=''}else{FROM=TO=''}return draw()}
   if(side==='f'){a=v;if(a&&(!b||b<a))b=a;if(a&&b>add(a,30)){b=add(a,30);NOTE='조회는 최대 31일까지입니다'}}
   else{b=v;if(b&&(!a||a>b))a=b;if(b&&a&&a<add(b,-30)){a=add(b,-30);NOTE='조회는 최대 31일까지입니다'}}
   if(w==='A'){AF=a;AT=b}else{FROM=a;TO=b}draw()}
@@ -373,6 +378,10 @@ $('#tb').addEventListener('input',e=>{
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('nav button').forEach(x=>x.setAttribute('aria-selected',x===b));
   $('#rep').hidden=b.dataset.t!=='rep';$('#gd').hidden=b.dataset.t!=='gd'});
+function syncTop(){const w=$('#wr'),t=$('#ts');if(!w||!t)return;$('#tsi').style.width=$('#tbl').scrollWidth+'px';t.hidden=$('#tbl').scrollWidth<=w.clientWidth}
+$('#ts').onscroll=()=>{$('#wr').scrollLeft=$('#ts').scrollLeft};
+$('#wr').onscroll=()=>{$('#ts').scrollLeft=$('#wr').scrollLeft};
+window.addEventListener('resize',syncTop);
 draw();loadSheet();
 </script>
 </body>
