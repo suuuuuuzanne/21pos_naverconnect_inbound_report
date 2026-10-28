@@ -87,7 +87,7 @@ code{background:var(--band);padding:1px 6px;border-radius:4px;font-size:13px}
     <div class="bar" id="chips"></div>
     <div class="stat" id="stat"></div>
     <div class="topscroll" id="ts" aria-hidden="true"><div id="tsi"></div></div>
-    <div class="wrap" id="wr"><table id="tbl"><thead><tr><th>신청일자</th><th>지역</th><th>상호</th><th>업종</th><th>사업자번호</th><th>연락처</th><th>상담결과</th><th>1차 컨택일</th><th>1차 시간</th><th>2차 일자</th><th>2차 시간</th><th>3차 일자</th><th>3차 시간</th><th>상담내용</th></tr></thead><tbody id="tb"></tbody></table></div>
+    <div class="wrap" id="wr"><table id="tbl"><thead><tr id="hr"><th>신청일자</th><th>지역</th><th>상호</th><th>업종</th><th>사업자번호</th><th>연락처</th><th>상담결과</th><th>1차 컨택일</th><th>1차 시간</th><th>2차 일자</th><th>2차 시간</th><th>3차 일자</th><th>3차 시간</th><th>상담내용</th></tr></thead><tbody id="tb"></tbody></table></div>
     <p class="stat">노란 칸(지역·업종·1~3차 일자·시간)은 직접 고칠 수 있고 자동 저장됩니다. 부재·무응답 건은 표 맨 아래에 따로 모았습니다.</p>
   </div>
 </section>
@@ -279,6 +279,7 @@ const val=(r,f)=>{
   return r[f];
 };
 const FIELDS=['신청일자','지역','상호','업종','사업자번호','연락처','상담결과','1차 컨택일','1차 시간','2차 일자','2차 시간','3차 일자','3차 시간','상담내용'];
+const NC=()=>FIELDS.length+(SEL==='전체'?1:0);
 const EDIT=['지역','업종','1차 컨택일','1차 시간','2차 일자','2차 시간','3차 일자','3차 시간'];
 
 /* 조회 */
@@ -292,8 +293,8 @@ function view(){return srt(base().filter(r=>!SF.size||SF.has(lb(r))))}
 function rowsHtml(list){
   let h='',l=null;
   list.forEach(r=>{
-    if(r.first!==l){l=r.first;h+=`<tr class="band"><td colspan="14">${lab(l)} · ${list.filter(x=>x.first===l).length}건</td></tr>`}
-    h+='<tr>'+FIELDS.map(f=>{
+    if(r.first!==l){l=r.first;h+=`<tr class="band"><td colspan="${NC()}">${lab(l)} · ${list.filter(x=>x.first===l).length}건</td></tr>`}
+    h+='<tr>'+(SEL==='전체'?`<td class="n"><b>${esc(r.who)}</b></td>`:'')+FIELDS.map(f=>{
       const v=val(r,f);
       if(EDIT.includes(f))return`<td class="e" contenteditable tabindex="0" data-k="${esc(r.key)}" data-f="${f}">${esc(v)}</td>`;
       if(f==='상담결과')return`<td class="n"><span class="tag" style="${sty(lb(r))}">${esc(v)}</span></td>`;
@@ -315,7 +316,8 @@ function draw(){
   const per=(a,b)=>a||b?`${a?lab(a):'처음'} ~ ${b?lab(b):'끝'}`:'전체';
   const nf=Object.values(DB.rows).filter(r=>(SEL==='전체'||r.who===SEL)&&!r.first&&inR((r.신청일자||'').slice(0,10),AF,AT)).length;
   $('#stat').textContent=`${SEL} · 신청일자 ${per(AF,AT)} · 1차 컨택일 ${per(FROM,TO)} · ${rs.length}건${(FROM||TO)&&!NOF&&nf?` · 컨택일 미입력 ${nf}건은 제외됨`:''}${NOTE?' · '+NOTE:''}`;
-  $('#tb').innerHTML=(m.length||ab.length)?rowsHtml(m)+(ab.length?`<tr class="sec"><td colspan="14">부재·무응답 ${ab.length}건</td></tr>`+rowsHtml(ab):''):'<tr><td colspan="14" style="text-align:center;color:var(--mute);padding:28px">이 기간에 표시할 데이터가 없습니다.</td></tr>';
+  const hr=$('#hr');if(hr){const has=hr.firstElementChild.textContent==='담당자';if(SEL==='전체'&&!has)hr.insertAdjacentHTML('afterbegin','<th>담당자</th>');if(SEL!=='전체'&&has)hr.firstElementChild.remove()}
+  $('#tb').innerHTML=(m.length||ab.length)?rowsHtml(m)+(ab.length?`<tr class="sec"><td colspan="${NC()}">부재·무응답 ${ab.length}건</td></tr>`+rowsHtml(ab):''):`<tr><td colspan="${NC()}" style="text-align:center;color:var(--mute);padding:28px">이 기간에 표시할 데이터가 없습니다.</td></tr>`;
 }
 
 /* 내보내기 */
