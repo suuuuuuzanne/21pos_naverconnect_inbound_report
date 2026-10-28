@@ -94,7 +94,7 @@ code{background:var(--band);padding:1px 6px;border-radius:4px;font-size:13px}
   <ol>
     <li><code>인바운드_통계_구글시트용.xlsx</code>를 구글 드라이브에 올리고 열어서 파일 &gt; Google 스프레드시트로 저장을 누릅니다. 탭은 인바운드_원본, 재컨택_로그, 설정_사용법, 분류사전이 만들어집니다.</li>
     <li>시트 오른쪽 위 공유에서 일반 액세스를 "링크가 있는 모든 사용자", 권한을 "뷰어"로 바꿉니다.</li>
-    <li>시트 주소를 복사해 GitHub의 <code>index.html</code>을 연필(편집) 아이콘으로 열고 <code>const SHEET_URL='https://docs.google.com/spreadsheets/d/1Y9vDlGmBoniOMyquPUdiQimYUXH1h-kcmhZo_PtzIUs/edit?usp=sharing';</code>의 따옴표 안에 붙여넣은 뒤 Commit changes를 누릅니다.</li>
+    <li>시트 주소를 복사해 GitHub의 <code>index.html</code>을 연필(편집) 아이콘으로 열고 파일 아래쪽 <code>&lt;script&gt;</code> 부분에 있는 SHEET_URL 줄의 따옴표 안에 붙여넣은 뒤 Commit changes를 누릅니다. (이 사용법 글 속의 같은 글자가 아니라 코드 줄입니다)</li>
     <li>매일 하는 일: 원본 데이터 A~L열을 인바운드_원본 시트 A3부터 값으로 붙여넣기(Ctrl+Shift+V)만 하면 됩니다. 전체 데이터면 덮어쓰고, 새 건만이면 마지막 데이터 아래 빈 줄에 붙입니다. 1~2행과 M열 이후(회색)는 건드리지 마세요.</li>
     <li>자동 계산: 컨택일, 최종 상태, 2·3차 컨택일·시간(상담내용에 쓴 날짜), 2·3차 예정일, 지역·업종. 재컨택_로그는 입력하지 않아도 됩니다.</li>
   </ol>
@@ -169,7 +169,7 @@ function grp(k){
 }
 const ABS='부재중·무응답';
 /* 구글 시트 연결: 시트 주소를 아래 따옴표 안에 붙여넣으세요 */
-const SHEET_URL='';
+const SHEET_URL='https://docs.google.com/spreadsheets/d/1Y9vDlGmBoniOMyquPUdiQimYUXH1h-kcmhZo_PtzIUs/edit';
 function csv(t){const o=[];let r=[],c='',q=false;
   for(let i=0;i<t.length;i++){const h=t[i];
     if(q){if(h==='"'){if(t[i+1]==='"'){c+='"';i++}else q=false}else c+=h}
@@ -177,14 +177,26 @@ function csv(t){const o=[];let r=[],c='',q=false;
     else if(h==='\n'||h==='\r'){if(h==='\r'&&t[i+1]==='\n')i++;r.push(c);o.push(r);r=[];c=''}
     else c+=h}
   if(c||r.length){r.push(c);o.push(r)}return o}
+function jsonp(id,t){return new Promise((ok,no)=>{
+  const cb='gv'+Math.random().toString(36).slice(2),el=document.createElement('script'),tm=setTimeout(()=>{no(new Error('시간 초과'));el.remove()},12000);
+  window[cb]=d=>{clearTimeout(tm);delete window[cb];el.remove();
+    if(d.status!=='ok')return no(new Error((d.errors&&d.errors[0]&&d.errors[0].message)||'시트 응답 오류'));
+    ok(d.table.rows.map(r=>(r.c||[]).map(c=>c?(c.f!=null?c.f:(c.v==null?'':c.v)):'')))};
+  el.onerror=()=>{clearTimeout(tm);no(new Error('시트에 접근할 수 없습니다'))};
+  el.src=`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json;responseHandler:${cb}&headers=0&sheet=${encodeURIComponent(t)}`;
+  document.head.appendChild(el)})}
 async function loadSheet(){
   const m=SHEET_URL.match(/\/d\/([\w-]+)/);if(!m)return;
-  const get=async t=>{const r=await fetch(`https://docs.google.com/spreadsheets/d/${m[1]}/gviz/tq?tqx=out:csv&headers=0&sheet=${encodeURIComponent(t)}`);if(!r.ok)throw 0;return csv(await r.text())};
+  say('구글 시트에서 불러오는 중...');
+  const get=async t=>{
+    try{const r=await fetch(`https://docs.google.com/spreadsheets/d/${m[1]}/gviz/tq?tqx=out:csv&headers=0&sheet=${encodeURIComponent(t)}`);if(!r.ok)throw new Error('HTTP '+r.status);return csv(await r.text())}
+    catch(e){return jsonp(m[1],t)}};
   try{
     const [a,l]=await Promise.all([get('인바운드_원본'),get('재컨택_로그')]),rows=rowsFrom(a,l);
+    if(!rows.length)throw new Error('인바운드_원본 시트에서 데이터를 찾지 못했습니다');
     DB={rows:{}};rows.forEach(r=>DB.rows[r.key]=r);LS('ib_db',DB);FROM='';
     say(`구글 시트에서 ${rows.length}건을 불러왔습니다`);draw();
-  }catch(e){say('구글 시트를 불러오지 못했습니다. 공유가 "링크가 있는 모든 사용자, 뷰어"인지, 탭 이름이 맞는지 확인하세요. 마지막으로 저장된 데이터를 보여줍니다.')}
+  }catch(e){say(`구글 시트를 불러오지 못했습니다 (${e.message||e}). 공유가 "링크가 있는 모든 사용자, 뷰어"인지, 탭 이름이 맞는지 확인하세요. 마지막으로 저장된 데이터를 보여줍니다.`)}
 }
 const lb=r=>r.g===ABS?'부재·무응답':r.g==='재컨택 대기'?r.상담결과:r.g==='미분류'?'기타':(r.g||'미입력');
 const CL={'구매':'b','구매예정':'p','2차 컨택예정':'r2','3차 컨택예정':'r2','보류':'h','취소':'c','부재·무응답':'a','기타':'z','미입력':'z'};
