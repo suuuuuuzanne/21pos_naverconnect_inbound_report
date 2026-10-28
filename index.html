@@ -92,10 +92,11 @@ code{background:var(--band);padding:1px 6px;border-radius:4px;font-size:13px}
 <section id="gd" class="guide" hidden>
   <h2>0. 구글 시트로 자동 불러오기</h2>
   <ol>
-    <li>구글 시트를 새로 만들고 파일, 가져오기, 업로드에서 <code>인바운드_원본.csv</code>를 올립니다. 위치는 "새 시트 삽입", "텍스트를 숫자, 날짜, 수식으로 변환"은 체크 해제입니다. 같은 방법으로 <code>재컨택_로그.csv</code>도 올립니다. 탭 이름은 <code>인바운드_원본</code>, <code>재컨택_로그</code>여야 합니다.</li>
+    <li><code>인바운드_통계_구글시트용.xlsx</code>를 구글 드라이브에 올리고 열어서 파일 &gt; Google 스프레드시트로 저장을 누릅니다. 탭은 인바운드_원본, 재컨택_로그, 설정_사용법, 분류사전이 만들어집니다.</li>
     <li>시트 오른쪽 위 공유에서 일반 액세스를 "링크가 있는 모든 사용자", 권한을 "뷰어"로 바꿉니다.</li>
-    <li>시트 주소를 복사해 GitHub의 <code>index.html</code>을 연필(편집) 아이콘으로 열고 <code>const SHEET_URL='';</code>의 따옴표 안에 붙여넣은 뒤 Commit changes를 누릅니다.</li>
-    <li>이후에는 시트의 인바운드_원본 A~L열에 새 데이터를 붙여넣거나 고치기만 하면, 사이트를 열 때마다 최신 누적 데이터가 모두에게 보입니다.</li>
+    <li>시트 주소를 복사해 GitHub의 <code>index.html</code>을 연필(편집) 아이콘으로 열고 <code>const SHEET_URL='https://docs.google.com/spreadsheets/d/1Y9vDlGmBoniOMyquPUdiQimYUXH1h-kcmhZo_PtzIUs/edit?usp=sharing';</code>의 따옴표 안에 붙여넣은 뒤 Commit changes를 누릅니다.</li>
+    <li>매일 하는 일: 원본 데이터 A~L열을 인바운드_원본 시트 A3부터 값으로 붙여넣기(Ctrl+Shift+V)만 하면 됩니다. 전체 데이터면 덮어쓰고, 새 건만이면 마지막 데이터 아래 빈 줄에 붙입니다. 1~2행과 M열 이후(회색)는 건드리지 마세요.</li>
+    <li>자동 계산: 컨택일, 최종 상태, 2·3차 컨택일·시간(상담내용에 쓴 날짜), 2·3차 예정일, 지역·업종. 재컨택_로그는 입력하지 않아도 됩니다.</li>
   </ol>
   <div class="warn">링크가 있는 모든 사용자에게 공개하면 시트 주소를 아는 사람은 사업자번호와 연락처를 볼 수 있습니다. 공개 저장소의 index.html에도 주소가 들어가므로 팀 밖에 주소가 퍼지지 않게 관리하세요.</div>
 
@@ -123,7 +124,7 @@ code{background:var(--band);padding:1px 6px;border-radius:4px;font-size:13px}
     <tr><td>지역, 업종</td><td>원본의 지역(자동), 업종(자동) 열. 비어 있으면 직접 입력</td></tr>
     <tr><td>상호</td><td>상호 열, 없으면 매장명</td></tr>
     <tr><td>담당자</td><td>담당자 열. <code>강빛나(이수진)</code>처럼 괄호가 있으면 괄호 안 이름</td></tr>
-    <tr><td>상담날짜, 상담시간</td><td>1차·2차·3차를 한 칸에 줄로 표시. 1차는 1차 컨택일(시간 포함), 2차·3차는 상담내용에 적은 <code>2차부재(10/19)</code>, <code>3차 부재 10/21 14:30</code> 같은 표기에서 날짜·시각을 읽고, 없으면 재컨택_로그 날짜를 씁니다. 컨택 기록이 전혀 없으면 "미컨택", 컨택은 했는데 날짜가 없으면 "일자 미기재"로 나옵니다.</td></tr>
+    <tr><td>상담날짜, 상담시간</td><td>1차·2차·3차를 한 칸에 줄로 표시. 1차는 1차 컨택일(시간 포함), 2차·3차는 상담내용에 적은 <code>2차부재(10/19)</code>, <code>3차 부재 10/21 14:30</code> 같은 표기에서 날짜·시각을 읽고, 없으면 시트의 2·3차 컨택일, 재컨택_로그 날짜 순으로 씁니다. 재컨택 예정일만 있는 건은 "(예정)"으로 표시됩니다. 컨택 기록이 전혀 없으면 "미컨택", 컨택은 했는데 날짜가 없으면 "일자 미기재"로 나옵니다.</td></tr>
   </table>
 
   <h2>4. 내보내기</h2>
@@ -155,7 +156,7 @@ function pdt(v){
   const m=String(v).match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})(?:\D+(\d{1,2}):(\d{2}))?\s*(오전|오후)?/);
   if(!m)return null;
   let t='';
-  if(m[4]){let h=+m[4];const pm=/오후|PM/i.test(v),am=/오전|AM/i.test(v);if(pm&&h<12)h+=12;if(am&&h===12)h=0;t=`${p2(h)}:${m[5]}`}
+  if(m[4]){let h=+m[4];const pm=/오후|PM/i.test(v),am=/오전|AM/i.test(v);if(pm&&h<12)h+=12;if(am&&h===12)h=0;t=`${p2(h)}:${m[5]}`;if(t==='00:00')t=''}
   return{d:`${m[1]}-${p2(m[2])}-${p2(m[3])}`,t};
 }
 function grp(k){
@@ -178,7 +179,7 @@ function csv(t){const o=[];let r=[],c='',q=false;
   if(c||r.length){r.push(c);o.push(r)}return o}
 async function loadSheet(){
   const m=SHEET_URL.match(/\/d\/([\w-]+)/);if(!m)return;
-  const get=async t=>{const r=await fetch(`https://docs.google.com/spreadsheets/d/${m[1]}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(t)}`);if(!r.ok)throw 0;return csv(await r.text())};
+  const get=async t=>{const r=await fetch(`https://docs.google.com/spreadsheets/d/${m[1]}/gviz/tq?tqx=out:csv&headers=0&sheet=${encodeURIComponent(t)}`);if(!r.ok)throw 0;return csv(await r.text())};
   try{
     const [a,l]=await Promise.all([get('인바운드_원본'),get('재컨택_로그')]),rows=rowsFrom(a,l);
     DB={rows:{}};rows.forEach(r=>DB.rows[r.key]=r);LS('ib_db',DB);FROM='';
@@ -199,14 +200,16 @@ function parse(wb){
 function rowsFrom(a,la){
   const hi=a.findIndex(r=>r[0]==='신청일시');
   if(hi<0)throw new Error('신청일시 머리글을 찾지 못했습니다.');
-  const H=a[hi],ri=H.indexOf('지역(자동)'),ui=H.indexOf('업종(자동)'),lg={};
+  const H=a[hi],ix=n=>H.indexOf(n),mi=ix('컨택일(날짜)'),c2=ix('2차 컨택일'),t2=ix('2차 시간'),c3=ix('3차 컨택일'),t3=ix('3차 시간'),q2=ix('2차 예정일'),q3=ix('3차 예정일');
+  const dd=(r,i)=>{const x=i>=0?pdt(r[i]):null;return x?x.d:''},tt=(r,i)=>{const x=i>=0&&String(r[i]||'').match(/\d{1,2}:\d{2}/);return x?x[0].padStart(5,'0'):''};
+  const ri=H.indexOf('지역(자동)'),ui=H.indexOf('업종(자동)'),lg={};
   la.forEach(r=>{const d=pdt(r[0]);if(d&&r[1])(lg[r[1]]=lg[r[1]]||new Set()).add(d.d)});
   const out=[];
   a.slice(hi+1).forEach(r=>{
     if(r[0]==='')return;
     const key=String(r[0]),c=pdt(r[4]),ap=pdt(r[0]),[g,res]=grp(r[10]);
     const raw=String(r[5]||'').trim(),pm=raw.match(/\(([^)]+)\)/);
-    out.push({key,who:(pm?pm[1]:raw).trim()||'미지정',first:c?c.d:'',t1:c?c.t:'',g,
+    out.push({key,who:(pm?pm[1]:raw).trim()||'미지정',first:dd(r,mi)||(c?c.d:''),t1:c?c.t:'',g,d2:dd(r,c2),t2:tt(r,t2),d3:dd(r,c3),t3:tt(r,t3),q2:dd(r,q2),q3:dd(r,q3),
       신청일자:ap?`${ap.d} ${ap.t}`.trim():'',
       지역:ri>=0?String(r[ri]||''):'',상호:String(r[7]||r[1]||''),
       업종:ui>=0?String(r[ui]||''):'',사업자번호:String(r[6]||''),연락처:String(r[3]||''),
@@ -243,8 +246,11 @@ function att(r){
       }
       if(d&&r.first&&d<r.first)d=`${+yr+1}${d.slice(4)}`;
     }
+    const sd=i?r.d3:r.d2,st=i?r.t3:r.t2,sp=i?r.q3:r.q2;let plan=false;
+    if(!d&&sd){d=sd;t=t||st||'';ok=true}
     if(!d&&r.ds&&r.ds[i]){d=r.ds[i];ok=true}
-    A.push({d,t,ok});
+    if(!d&&sp){d=sp;plan=true}
+    A.push({d,t,ok,plan});
   });
   if(r.상담결과==='3차 컨택예정')A[1].ok=true;
   if(A[2].ok)A[1].ok=true;
@@ -252,7 +258,7 @@ function att(r){
 }
 const val=(r,f)=>{
   if(ED[r.key]&&ED[r.key][f]!==undefined)return ED[r.key][f];
-  if(f==='상담날짜')return att(r).map((x,i)=>`${i+1}차 ${x.d?md(x.d):x.ok?'일자 미기재':'미컨택'}`).join('\n');
+  if(f==='상담날짜')return att(r).map((x,i)=>`${i+1}차 ${x.d?md(x.d)+(x.plan?' (예정)':''):x.ok?'일자 미기재':'미컨택'}`).join('\n');
   if(f==='상담시간')return att(r).map(x=>x.t||'-').join('\n');
   return r[f];
 };
