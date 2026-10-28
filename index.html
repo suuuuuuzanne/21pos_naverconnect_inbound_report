@@ -305,7 +305,7 @@ function draw(){
   const who=['전체',...[...new Set(rowsAll.map(r=>r.who))].filter(n=>!HIDE.includes(n)).sort((x,y)=>(x==='미지정')-(y==='미지정')||x.localeCompare(y,'ko'))];
   $('#people').innerHTML=who.map(w=>`<button class="chip" aria-pressed="${w===SEL}" data-w="${esc(w)}">${esc(w)} ${rowsAll.filter(r=>w==='전체'||r.who===w).length}</button>`).join('');
   const b=base(),cnt={};b.forEach(r=>cnt[lb(r)]=(cnt[lb(r)]||0)+1);
-  $('#chips').innerHTML=Object.keys(CL).filter(k=>cnt[k]).map(k=>`<button class="chip k" style="${sty(k)}" aria-pressed="${SF.size?SF.has(k):true}" data-s="${k}">${k} ${cnt[k]}</button>`).join('');
+  $('#chips').innerHTML=(SF.size?'<button class="chip" data-s="*">전체 상태 보기</button>':'')+Object.keys(CL).filter(k=>cnt[k]).map(k=>`<button class="chip k" style="${sty(k)}" aria-pressed="${SF.size?SF.has(k):true}" data-s="${k}">${k} ${cnt[k]}</button>`).join('');
   const rs=view(),m=rs.filter(r=>r.g!==ABS),ab=rs.filter(r=>r.g===ABS);
   $('#stat').textContent=`${SEL} · ${lab(FROM)} ~ ${lab(TO)} · ${rs.length}건${NOTE?' · '+NOTE:''}`;
   $('#tb').innerHTML=(m.length||ab.length)?rowsHtml(m)+(ab.length?`<tr class="sec"><td colspan="10">부재·무응답 ${ab.length}건</td></tr>`+rowsHtml(ab):''):'<tr><td colspan="10" style="text-align:center;color:var(--mute);padding:28px">이 기간에 표시할 데이터가 없습니다.</td></tr>';
@@ -341,8 +341,9 @@ const dz=$('#drop');
 dz.ondragover=e=>{e.preventDefault();dz.classList.add('on')};
 dz.ondragleave=()=>dz.classList.remove('on');
 dz.ondrop=e=>{e.preventDefault();dz.classList.remove('on');e.dataTransfer.files[0]&&pick(e.dataTransfer.files[0])};
-$('#people').onclick=e=>{const b=e.target.closest('[data-w]');if(b){SEL=b.dataset.w;draw()}};
+$('#people').onclick=e=>{const b=e.target.closest('[data-w]');if(b){SEL=b.dataset.w;SF=new Set();draw()}};
 $('#chips').onclick=e=>{const b=e.target.closest('[data-s]');if(!b)return;const k=b.dataset.s;
+  if(k==='*'){SF=new Set();return draw()}
   if(!SF.size){SF=new Set([k])}else if(SF.has(k)){SF.delete(k)}else SF.add(k);draw()};
 $('#from').onchange=e=>{if(!e.target.value)return;FROM=e.target.value;NOTE='';
   if(TO<FROM)TO=FROM;if(TO>add(FROM,30)){TO=add(FROM,30);NOTE='조회는 최대 31일까지입니다'}draw()};
