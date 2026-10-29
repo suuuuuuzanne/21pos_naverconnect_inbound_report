@@ -50,6 +50,8 @@ tr.sec td{background:var(--a);color:var(--card);font-weight:700;padding:10px;fon
 .guide ol,.guide ul{padding-left:20px}
 .guide li{margin:4px 0}
 .guide table{min-width:0;margin:8px 0}
+a.tel{color:var(--acc);text-decoration:none;font-weight:600}
+a.tel:hover{text-decoration:underline}
 code{background:var(--band);padding:1px 6px;border-radius:4px;font-size:13px}
 .warn{border-left:3px solid var(--acc);background:var(--band);padding:8px 12px;margin:10px 0;border-radius:0 6px 6px 0}
 [hidden]{display:none!important}
@@ -98,7 +100,7 @@ code{background:var(--band);padding:1px 6px;border-radius:4px;font-size:13px}
     <li><code>인바운드_통계_구글시트용.xlsx</code>를 구글 드라이브에 올리고 열어서 파일 &gt; Google 스프레드시트로 저장을 누릅니다. 탭은 인바운드_원본, 재컨택_로그, 설정_사용법, 분류사전이 만들어집니다.</li>
     <li>시트 오른쪽 위 공유에서 일반 액세스를 "링크가 있는 모든 사용자", 권한을 "뷰어"로 바꿉니다.</li>
     <li>시트 주소를 복사해 GitHub의 <code>index.html</code>을 연필(편집) 아이콘으로 열고 파일 아래쪽 <code>&lt;script&gt;</code> 부분에 있는 SHEET_URL 줄의 따옴표 안에 붙여넣은 뒤 Commit changes를 누릅니다. (이 사용법 글 속의 같은 글자가 아니라 코드 줄입니다)</li>
-    <li>매일 하는 일: 원본 데이터 A~L열을 인바운드_원본 시트 A3부터 값으로 붙여넣기(Ctrl+Shift+V)만 하면 됩니다. 전체 데이터면 덮어쓰고, 새 건만이면 마지막 데이터 아래 빈 줄에 붙입니다. 1~2행과 M열 이후(회색)는 건드리지 마세요.</li>
+    <li>매일 하는 일: 원본 데이터 A~M열(지역·업종 포함)을 인바운드_원본 시트 A3부터 값으로 붙여넣기(Ctrl+Shift+V)만 하면 됩니다. 전체 데이터면 덮어쓰고, 새 건만이면 마지막 데이터 아래 빈 줄에 붙입니다. 1~2행과 N열 이후(회색)는 건드리지 마세요.</li>
     <li>자동 계산: 컨택일, 최종 상태, 2·3차 컨택일·시간(상담내용에 쓴 날짜), 2·3차 예정일, 지역·업종. 재컨택_로그는 입력하지 않아도 됩니다.</li>
   </ol>
   <div class="warn">링크가 있는 모든 사용자에게 공개하면 시트 주소를 아는 사람은 사업자번호와 연락처를 볼 수 있습니다. 공개 저장소의 index.html에도 주소가 들어가므로 팀 밖에 주소가 퍼지지 않게 관리하세요.</div>
@@ -215,20 +217,20 @@ function parse(wb){
 function rowsFrom(a,la){
   const hi=a.findIndex(r=>r[0]==='신청일시'||(r.includes('연락처')&&r.includes('상담내용')));
   if(hi<0)throw new Error('신청일시 머리글을 찾지 못했습니다.');
-  const H=a[hi],DEF={'컨택일(날짜)':12,'2차 컨택일':15,'2차 시간':16,'3차 컨택일':17,'3차 시간':18,'2차 예정일':19,'3차 예정일':20,'지역(자동)':21,'업종(자동)':22},ix=n=>{const i=H.indexOf(n);return i>=0?i:DEF[n]},mi=ix('컨택일(날짜)'),c2=ix('2차 컨택일'),t2=ix('2차 시간'),c3=ix('3차 컨택일'),t3=ix('3차 시간'),q2=ix('2차 예정일'),q3=ix('3차 예정일');
+  const H=a[hi],oi=H.indexOf('상담내용'),o=oi===11?0:1,DEF={'컨택일(날짜)':12+o,'2차 컨택일':15+o,'2차 시간':16+o,'3차 컨택일':17+o,'3차 시간':18+o,'2차 예정일':19+o,'3차 예정일':20+o,'지역(자동)':21+o,'업종(자동)':22+o},ix=n=>{const i=H.indexOf(n);return i>=0?i:DEF[n]},mi=ix('컨택일(날짜)'),c2=ix('2차 컨택일'),t2=ix('2차 시간'),c3=ix('3차 컨택일'),t3=ix('3차 시간'),q2=ix('2차 예정일'),q3=ix('3차 예정일');
   const dd=(r,i)=>{const x=i>=0?pdt(r[i]):null;return x?x.d:''},tt=(r,i)=>{const x=i>=0&&String(r[i]||'').match(/\d{1,2}:\d{2}/);return x?x[0].padStart(5,'0'):''};
   const ri=ix('지역(자동)'),ui=ix('업종(자동)'),lg={};
   la.forEach(r=>{const d=pdt(r[0]);if(d&&r[1])(lg[r[1]]=lg[r[1]]||new Set()).add(d.d)});
   const out=[];
   a.slice(hi+1).forEach(r=>{
     if(r[0]==='')return;
-    const key=String(r[0])+'|'+String(r[3]),rk=String(r[0]),c=pdt(r[4]),ap=pdt(r[0]),[g,res]=grp(r[10]);
+    const key=String(r[0])+'|'+String(r[3]),rk=String(r[0]),c=pdt(r[4]),ap=pdt(r[0]),[g,res]=grp(r[10+o]);
     const raw=String(r[5]||'').trim(),pm=raw.match(/\(([^)]+)\)/);
     out.push({key,who:(pm?pm[1]:raw).trim()||'미지정',first:dd(r,mi)||(c?c.d:''),t1:c?c.t:'',g,d2:dd(r,c2),t2:tt(r,t2),d3:dd(r,c3),t3:tt(r,t3),q2:dd(r,q2),q3:dd(r,q3),
       신청일자:ap?`${ap.d} ${ap.t}`.trim():'',
-      지역:ri>=0?String(r[ri]||''):'',상호:String(r[7]||r[1]||''),
-      업종:ui>=0?String(r[ui]||''):'',사업자번호:String(r[6]||''),연락처:String(r[3]||''),
-      상담결과:res,상담내용:String(r[11]||''),ds:[...(lg[rk]||[])].sort()});
+      지역:String((o&&r[8])||(ri>=0?r[ri]:'')||''),상호:String(r[7]||r[1]||''),
+      업종:String((o&&r[9])||(ui>=0?r[ui]:'')||''),사업자번호:String(r[6]||''),연락처:String(r[3]||''),
+      상담결과:res,상담내용:String(r[11+o]||''),ds:[...(lg[rk]||[])].sort()});
   });
   return out;
 }
@@ -297,6 +299,7 @@ function rowsHtml(list){
     h+='<tr>'+(SEL==='전체'?`<td class="n"><b>${esc(r.who)}</b></td>`:'')+FIELDS.map(f=>{
       const v=val(r,f);
       if(EDIT.includes(f))return`<td class="e" contenteditable tabindex="0" data-k="${esc(r.key)}" data-f="${f}">${esc(v)}</td>`;
+      if(f==='연락처'){const n=String(v||'').replace(/[^\d+]/g,'');return`<td class="n">${n?`<a class="tel" href="tel:${n}">${esc(v)}</a>`:''}</td>`}
       if(f==='상담결과')return`<td class="n"><span class="tag" style="${sty(lb(r))}">${esc(v)}</span></td>`;
       return`<td class="${f==='상담내용'?'c':'n'}">${esc(v)}</td>`}).join('')+'</tr>';
   });
