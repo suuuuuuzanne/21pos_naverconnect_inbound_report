@@ -214,6 +214,24 @@ function parse(wb){
   const ls=wb.Sheets['재컨택_로그'];
   return rowsFrom(XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''}),ls?XLSX.utils.sheet_to_json(ls,{header:1,raw:true,defval:''}):[]);
 }
+function memoDT(m,n,ay){
+  m=String(m||'');const re=new RegExp(n+'\\s*차','g');let k;
+  while((k=re.exec(m))){
+    const seg=m.slice(k.index+k[0].length).split(/[1-3]\s*차/)[0].slice(0,40);
+    let a=seg.match(/(\d{4})\s*[-./]\s*(\d{1,2})\s*[-./]\s*(\d{1,2})(?:\D{0,2}(오전|오후)?\s*(\d{1,2}):(\d{2})\s*(오전|오후)?)?/),y,mo,d,h,mi,ap;
+    if(a){y=a[1];mo=a[2];d=a[3];h=a[5];mi=a[6];ap=a[4]||a[7]}
+    else{
+      a=seg.match(/(\d{1,2})\s*(?:\/|월\s*)(\d{1,2})\s*일?(?:\D{0,2}(오전|오후)?\s*(\d{1,2}):(\d{2})\s*(오전|오후)?)?/);
+      if(!a||a.index>25)continue;
+      y=ay;mo=a[1];d=a[2];h=a[4];mi=a[5];ap=a[3]||a[6];
+    }
+    if(+mo<1||+mo>12||+d<1||+d>31)continue;
+    let t='';
+    if(h!=null){let hh=+h;if(ap==='오후'&&hh<12)hh+=12;if(ap==='오전'&&hh===12)hh=0;t=`${p2(hh)}:${mi}`}
+    return{d:`${y}-${p2(mo)}-${p2(d)}`,t,plan:/예정/.test(seg.slice(0,a.index))};
+  }
+  return null;
+}
 function rowsFrom(a,la){
   const hi=a.findIndex(r=>r[0]==='신청일시'||(r.includes('연락처')&&r.includes('상담내용')));
   if(hi<0)throw new Error('신청일시 머리글을 찾지 못했습니다.');
@@ -226,7 +244,11 @@ function rowsFrom(a,la){
     if(r[0]==='')return;
     const key=String(r[0])+'|'+String(r[3]),rk=String(r[0]),c=pdt(r[4]),ap=pdt(r[0]),[g,res]=grp(r[10+o]);
     const raw=String(r[5]||'').trim(),pm=raw.match(/\(([^)]+)\)/);
-    out.push({key,who:(pm?pm[1]:raw).trim()||'미지정',first:dd(r,mi)||(c?c.d:''),t1:c?c.t:'',g,d2:dd(r,c2),t2:tt(r,t2),d3:dd(r,c3),t3:tt(r,t3),q2:dd(r,q2),q3:dd(r,q3),
+    const ay=ap?ap.d.slice(0,4):String(new Date().getFullYear()),memo=r[11+o],F2=memoDT(memo,2,ay),F3=memoDT(memo,3,ay),
+      s2=dd(r,c2),s3=dd(r,c3),sq2=dd(r,q2),sq3=dd(r,q3);
+    const pick=(sd,st,F)=>sd?[sd,st]:(F&&!F.plan?[F.d,F.t]:['','']),pq=(sq,F)=>sq||(F&&F.plan?F.d:'');
+    const P2=pick(s2,tt(r,t2),F2),P3=pick(s3,tt(r,t3),F3);
+    out.push({key,who:(pm?pm[1]:raw).trim()||'미지정',first:dd(r,mi)||(c?c.d:''),t1:c?c.t:'',g,d2:P2[0],t2:P2[1],d3:P3[0],t3:P3[1],q2:pq(sq2,F2),q3:pq(sq3,F3),
       신청일자:ap?`${ap.d} ${ap.t}`.trim():'',
       지역:String((o&&r[8])||(ri>=0?r[ri]:'')||''),상호:String(r[7]||r[1]||''),
       업종:String((o&&r[9])||(ui>=0?r[ui]:'')||''),사업자번호:String(r[6]||''),연락처:String(r[3]||''),
